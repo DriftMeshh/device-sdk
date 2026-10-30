@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present && tsc -p tsconfig.json",
-    "simulate": "tsx src/index.ts",
+    "simulate": "tsx --env-file-if-exists=.env src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
