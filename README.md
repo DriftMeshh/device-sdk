@@ -37,6 +37,14 @@ It registers the device (skipping if already active — safe to restart),
 then submits a simulated reading every `SUBMIT_INTERVAL_MS`, logging
 whether each one was accepted.
 
+Pass `--once` to submit exactly one reading and exit immediately — useful
+for testing, demos, or cron-driven deployments where the device wakes up,
+submits, and sleeps rather than staying resident:
+
+```bash
+node --env-file=.env dist/index.js --once
+```
+
 ```bash
 npm test          # 14 tests: region bucketing + reading simulation
 npm run typecheck
@@ -87,7 +95,6 @@ one u32) rather than a real geohash; see the Wave issues below.
 ## Suggested Stellar Wave issues
 
 **Trivial**
-- Add a `--once` flag to `index.ts` for a single submission instead of only continuous polling
 - Log a warning if a submitted reading was rejected N times in a row (possible miscalibrated sensor)
 
 **Medium**
