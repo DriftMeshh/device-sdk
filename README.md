@@ -27,15 +27,22 @@ wraps both generated clients with the device's own signing key
 npm install
 npm run build        # builds the bindings packages, then src/
 cp .env.example .env
-# fill in DEVICE_SECRET (the device's own keypair), OWNER_PUBLIC_KEY, and
-# the two contract IDs — see contracts/TESTNET.md for already-deployed
-# testnet IDs, or deploy your own via the contracts repo.
+# fill in the two contract IDs — see contracts/TESTNET.md for
+# already-deployed testnet IDs, or deploy your own via the contracts repo.
 node --env-file=.env dist/index.js
 ```
 
 It registers the device (skipping if already active — safe to restart),
 then submits a simulated reading every `SUBMIT_INTERVAL_MS`, logging
 whether each one was accepted.
+
+`DEVICE_SECRET` and `OWNER_PUBLIC_KEY` are optional — leave them unset
+and `src/identity.ts` auto-provisions a device: generates a keypair,
+funds it via testnet Friendbot, and persists it to
+`./data/device-identity.json` so a restart reuses the same device
+instead of registering a new one each time (the device then owns
+itself). This is what lets it run as a zero-config background worker —
+see Deploying below.
 
 Pass `--once` to submit exactly one reading and exit immediately — useful
 for testing, demos, or cron-driven deployments where the device wakes up,
@@ -70,6 +77,38 @@ Then confirmed two ways:
   region code, and transaction hash) within one poll cycle — proving the
   full chain (`device-sdk` → live contract → `indexer` → REST API) works
   together, not just each piece in isolation.
+
+## Deploying
+
+For the live demo this runs continuously as a background worker
+alongside `indexer`, so the dashboard always shows moving data instead
+of a static snapshot — bundled into **the same** [Bot-Hosting.net](https://bot-hosting.net)
+deployment as `indexer` (not a separate one), since the free plan caps
+out at one deployment per account. Verified live as of November 2026:
+the indexer's deployment Start command clones this repo alongside its
+own, builds it, and launches it as a background process before
+`exec`ing into the indexer's own process:
+
+```bash
+cd /home/container && \
+  if [ -f package.json ]; then npm install --no-fund --no-audit && npm run build; fi && \
+  if [ -d device-sdk/.git ]; then (cd device-sdk && git pull --ff-only); else \
+    git clone --depth 1 https://github.com/DriftMeshh/device-sdk.git device-sdk; fi && \
+  (cd device-sdk && npm install --no-fund --no-audit && npm run build && node dist/index.js &) && \
+  exec node ${STARTUP_FILE}
+```
+
+The indexer's own env vars already cover `STELLAR_RPC_URL`,
+`NETWORK_PASSPHRASE`, and `DEVICE_REGISTRY_CONTRACT_ID` /
+`SUBMISSION_VALIDATOR_CONTRACT_ID` — only `DEVICE_TYPE`, `LAT`, `LON`,
+and `SUBMIT_INTERVAL_MS` need adding on top. `DEVICE_SECRET` is
+deliberately left unset so it self-provisions (see above); the
+generated identity persists to `device-sdk/data/device-identity.json`
+in the container's own storage, surviving restarts but not a fresh
+redeploy. If you have your own separate host (or a paid Bot-Hosting
+plan removing the 1-deployment cap), this runs as its own standalone
+deployment just as easily — the bundling above is a free-tier
+workaround, not a requirement.
 
 ## How `region_code` works
 
