@@ -1,6 +1,8 @@
 export interface DeviceSdkConfig {
-  deviceSecret: string;
-  ownerPublicKey: string;
+  /** Unset means index.ts auto-provisions one — see identity.ts. */
+  deviceSecret: string | undefined;
+  /** Unset means the device owns itself (defaults to its own address once resolved). */
+  ownerPublicKey: string | undefined;
   deviceType: string;
   lat: number;
   lon: number;
@@ -21,8 +23,8 @@ function required(env: NodeJS.ProcessEnv, key: string): string {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): DeviceSdkConfig {
   return {
-    deviceSecret: required(env, "DEVICE_SECRET"),
-    ownerPublicKey: required(env, "OWNER_PUBLIC_KEY"),
+    deviceSecret: env.DEVICE_SECRET,
+    ownerPublicKey: env.OWNER_PUBLIC_KEY,
     deviceType: env.DEVICE_TYPE ?? "weather",
     lat: Number(env.LAT ?? 0),
     lon: Number(env.LON ?? 0),

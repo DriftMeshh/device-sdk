@@ -1,9 +1,17 @@
+import { Keypair } from "@stellar/stellar-sdk";
 import { loadConfig } from "./config.js";
 import { DriftMeshDevice } from "./client.js";
 import { regionCodeFromLatLon } from "./region.js";
 import { ReadingSimulator, currentEpoch } from "./simulate.js";
+import { resolveDeviceSecret } from "./identity.js";
 
-const config = loadConfig();
+const loaded = loadConfig();
+const deviceSecret = await resolveDeviceSecret(loaded.deviceSecret, {
+  networkPassphrase: loaded.networkPassphrase,
+});
+const ownerPublicKey = loaded.ownerPublicKey ?? Keypair.fromSecret(deviceSecret).publicKey();
+const config = { ...loaded, deviceSecret, ownerPublicKey };
+
 const device = await DriftMeshDevice.connect(config);
 console.log(`[device-sdk] device address: ${device.address}`);
 
