@@ -36,5 +36,12 @@ async function tick(): Promise<void> {
   }
 }
 
-await tick();
-setInterval(tick, config.submitIntervalMs);
+const runOnce = process.argv.includes("--once");
+
+if (runOnce) {
+  await tick();
+  process.exit(0);
+} else {
+  await tick();
+  setInterval(tick, config.submitIntervalMs);
+}
