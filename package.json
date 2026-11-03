@@ -4,11 +4,15 @@
   "private": true,
   "description": "Client library + reading simulator for DriftMesh sensors. Signs and submits readings to the deployed Soroban contracts.",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "workspaces": [
     "bindings/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present && tsc -p tsconfig.json",
+    "start": "node --env-file-if-exists=.env dist/index.js",
     "simulate": "tsx --env-file-if-exists=.env src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
