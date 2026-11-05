@@ -236,6 +236,19 @@ export class DriftMeshDevice {
     return "registered";
   }
 
+  /**
+   * Reads `submission-validator`'s own epoch-zero anchor — its deployment
+   * timestamp, which is what epoch numbers are relative to (see
+   * `currentEpoch` in simulate.ts). There's no direct getter for it, but
+   * `epoch_end(0) == epochZero + epochSeconds`, so epoch 0's end minus the
+   * epoch window backs it out. Call this once at startup and cache the
+   * result — it never changes for a given deployed contract.
+   */
+  async fetchEpochZero(epochSeconds: number): Promise<number> {
+    const tx = await this.validator.epoch_end({ epoch: 0 });
+    return Number(tx.result) - epochSeconds;
+  }
+
   /** Submits one reading. Returns whether the validator accepted it as plausible. */
   async submitReading(regionCode: number, epoch: number, value: number): Promise<boolean> {
     const tx = await this.validator.submit_reading({

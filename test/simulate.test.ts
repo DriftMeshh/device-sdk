@@ -34,22 +34,37 @@ describe("ReadingSimulator", () => {
 describe("currentEpoch", () => {
   it("buckets timestamps into the same epoch within one window", () => {
     const epochSeconds = 3600;
+    const epochZero = 1_800_000_000;
     const start = 1_800_000_000_000; // ms
-    const a = currentEpoch(epochSeconds, start);
-    const b = currentEpoch(epochSeconds, start + 1000 * 60 * 30); // +30 min
+    const a = currentEpoch(epochSeconds, epochZero, start);
+    const b = currentEpoch(epochSeconds, epochZero, start + 1000 * 60 * 30); // +30 min
     expect(a).toBe(b);
   });
 
   it("advances to the next epoch once the window elapses", () => {
     const epochSeconds = 3600;
+    const epochZero = 1_800_000_000;
     const start = 1_800_000_000_000;
-    const a = currentEpoch(epochSeconds, start);
-    const b = currentEpoch(epochSeconds, start + epochSeconds * 1000);
+    const a = currentEpoch(epochSeconds, epochZero, start);
+    const b = currentEpoch(epochSeconds, epochZero, start + epochSeconds * 1000);
     expect(b).toBe(a + 1);
   });
 
+  it("is relative to epochZero, not absolute Unix time", () => {
+    // Same instant, two different contract deployment times (epochZero) —
+    // this is exactly the bug fixed here: epoch numbers aren't portable
+    // across deployments, so the same wall-clock moment must bucket
+    // differently once epochZero differs.
+    const epochSeconds = 3600;
+    const nowMs = 1_800_000_000_000;
+    const freshlyDeployed = currentEpoch(epochSeconds, 1_799_999_000, nowMs);
+    const deployedLongAgo = currentEpoch(epochSeconds, 0, nowMs);
+    expect(freshlyDeployed).not.toBe(deployedLongAgo);
+    expect(freshlyDeployed).toBe(0);
+  });
+
   it("rejects a non-positive epoch window", () => {
-    expect(() => currentEpoch(0)).toThrow(RangeError);
-    expect(() => currentEpoch(-10)).toThrow(RangeError);
+    expect(() => currentEpoch(0, 0)).toThrow(RangeError);
+    expect(() => currentEpoch(-10, 0)).toThrow(RangeError);
   });
 });

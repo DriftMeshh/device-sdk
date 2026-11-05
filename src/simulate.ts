@@ -25,14 +25,22 @@ export class ReadingSimulator {
 }
 
 /**
- * Buckets the current time into a reward epoch. Devices and the indexer
- * both need to agree on this scheme since it's what `payment-streamer`
- * pays out against per device per window — it's not derived from
- * anything on-chain, it's a shared convention.
+ * Buckets the current time into a reward epoch, relative to `epochZero` —
+ * `submission-validator`'s own deployment timestamp (`EpochZero`, set at
+ * `initialize()`), not absolute Unix time. Epoch numbering restarts from 0
+ * on every fresh deployment, so this must be fetched from the contract
+ * itself (see `DriftMeshDevice.fetchEpochZero`) rather than assumed —
+ * using Unix-epoch-relative numbering here would compute an epoch number
+ * the contract's `compute_epoch_end` could never consider final, since
+ * its own formula is `epoch_zero + (epoch + 1) * epoch_seconds`.
  */
-export function currentEpoch(epochSeconds: number, nowMs: number = Date.now()): number {
+export function currentEpoch(
+  epochSeconds: number,
+  epochZero: number,
+  nowMs: number = Date.now(),
+): number {
   if (!(epochSeconds > 0)) {
     throw new RangeError(`epochSeconds must be positive: ${epochSeconds}`);
   }
-  return Math.floor(nowMs / 1000 / epochSeconds);
+  return Math.floor((nowMs / 1000 - epochZero) / epochSeconds);
 }

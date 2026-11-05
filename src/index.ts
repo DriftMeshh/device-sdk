@@ -20,13 +20,14 @@ console.log(`[device-sdk] registration: ${status}`);
 
 const regionCode = regionCodeFromLatLon(config.lat, config.lon, config.regionCellSizeDegrees);
 const simulator = new ReadingSimulator();
+const epochZero = await device.fetchEpochZero(config.epochSeconds);
 console.log(
   `[device-sdk] region_code=${regionCode}, submitting every ${config.submitIntervalMs}ms ` +
-    `(epoch window = ${config.epochSeconds}s)`,
+    `(epoch window = ${config.epochSeconds}s, epoch_zero=${epochZero})`,
 );
 
 async function tick(): Promise<void> {
-  const epoch = currentEpoch(config.epochSeconds);
+  const epoch = currentEpoch(config.epochSeconds, epochZero);
   const value = simulator.next();
   try {
     const accepted = await device.submitReading(regionCode, epoch, value);
