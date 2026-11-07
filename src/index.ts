@@ -6,9 +6,11 @@ import { ReadingSimulator, currentEpoch } from "./simulate.js";
 import { resolveDeviceSecret } from "./identity.js";
 import { parseCliArgs } from "./cli.js";
 import { getCachedEpochZero, setCachedEpochZero } from "./epochCache.js";
+import { createLogger } from "./logger.js";
 
 const cli = parseCliArgs(process.argv.slice(2));
 const loaded = loadConfig();
+const log = createLogger(loaded.logFormat);
 const deviceSecret = await resolveDeviceSecret(loaded.deviceSecret, {
   networkPassphrase: loaded.networkPassphrase,
 });
@@ -16,7 +18,7 @@ const ownerPublicKey = loaded.ownerPublicKey ?? Keypair.fromSecret(deviceSecret)
 const config = { ...loaded, deviceSecret, ownerPublicKey };
 
 const device = await DriftMeshDevice.connect(config);
-console.log(`[device-sdk] device address: ${device.address}`);
+log.info("device_address", { address: device.address });
 
 // Fetched before registration so --diagnose-epoch can exit without any
 // on-chain writes at all, not just without submitting a reading. Cached
@@ -31,15 +33,17 @@ if (cachedEpochZero === undefined) {
 if (cli.diagnoseEpoch) {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const epoch = currentEpoch(config.epochSeconds, epochZero);
-  console.log(
-    `[device-sdk] epoch_zero=${epochZero} epoch_seconds=${config.epochSeconds} ` +
-      `now=${nowSeconds} current_epoch=${epoch}`,
-  );
+  log.info("epoch_diagnostic", {
+    epoch_zero: epochZero,
+    epoch_seconds: config.epochSeconds,
+    now: nowSeconds,
+    current_epoch: epoch,
+  });
   process.exit(0);
 }
 
 const status = await device.ensureRegistered();
-console.log(`[device-sdk] registration: ${status}`);
+log.info("registration", { status });
 
 const registeredLocation = await device.fetchRegisteredLocation();
 const regionMismatch = regionCodeMismatchWarning(
@@ -50,7 +54,7 @@ const regionMismatch = regionCodeMismatchWarning(
   config.regionCellSizeDegrees,
 );
 if (regionMismatch) {
-  console.warn(`[device-sdk] WARNING: ${regionMismatch}`);
+  log.warn("region_code_mismatch", { detail: regionMismatch });
 }
 
 if (config.rewardAssetCode && config.rewardAssetIssuer) {
@@ -61,24 +65,26 @@ if (config.rewardAssetCode && config.rewardAssetIssuer) {
     assetCode: config.rewardAssetCode,
     assetIssuer: config.rewardAssetIssuer,
   });
-  console.log(`[device-sdk] reward asset trustline: ${trustlineResult}`);
+  log.info("reward_asset_trustline", { result: trustlineResult });
 }
 
 const regionCode = regionCodeFromLatLon(config.lat, config.lon, config.regionCellSizeDegrees);
 const simulator = new ReadingSimulator();
-console.log(
-  `[device-sdk] region_code=${regionCode}, submitting every ${config.submitIntervalMs}ms ` +
-    `(epoch window = ${config.epochSeconds}s, epoch_zero=${epochZero})`,
-);
+log.info("startup", {
+  region_code: regionCode,
+  submit_interval_ms: config.submitIntervalMs,
+  epoch_seconds: config.epochSeconds,
+  epoch_zero: epochZero,
+});
 
 async function tick(): Promise<void> {
   const epoch = cli.epochOverride ?? currentEpoch(config.epochSeconds, epochZero);
   const value = simulator.next();
   try {
     const accepted = await device.submitReading(regionCode, epoch, value);
-    console.log(`[device-sdk] epoch=${epoch} value=${value} accepted=${accepted}`);
+    log.info("reading", { epoch, value, accepted });
   } catch (err) {
-    console.error("[device-sdk] submit failed:", err);
+    log.error("submit_failed", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 
