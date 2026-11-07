@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { regionCodeFromLatLon } from "../src/region.js";
+import { regionCodeFromLatLon, regionCodeMismatchWarning } from "../src/region.js";
 
 describe("regionCodeFromLatLon", () => {
   it("is deterministic for the same coordinates", () => {
@@ -44,5 +44,33 @@ describe("regionCodeFromLatLon", () => {
 
   it("rejects a cell size so small the index would overflow 16 bits", () => {
     expect(() => regionCodeFromLatLon(89, 179, 0.0001)).toThrow(RangeError);
+  });
+});
+
+describe("regionCodeMismatchWarning", () => {
+  it("returns null when configured and registered locations are in the same cell", () => {
+    expect(regionCodeMismatchWarning(40.71, -73.96, 40.74, -73.93, 0.1)).toBeNull();
+  });
+
+  it("returns null for the exact same coordinates", () => {
+    expect(regionCodeMismatchWarning(40.7128, -73.969, 40.7128, -73.969)).toBeNull();
+  });
+
+  it("returns a warning message when the two are in different cells", () => {
+    const warning = regionCodeMismatchWarning(40.7, -73.9, 41.2, -73.9, 0.1);
+    expect(warning).not.toBeNull();
+    expect(warning).toMatch(/doesn't match/);
+  });
+
+  it("includes the registered lat/lon in the warning for operator debugging", () => {
+    const warning = regionCodeMismatchWarning(40.7, -73.9, 41.2, -75.5, 0.1);
+    expect(warning).toContain("41.2");
+    expect(warning).toContain("-75.5");
+  });
+
+  it("respects a custom cell size", () => {
+    // Far enough apart to differ at 0.1° cells, but the same cell at 10°.
+    expect(regionCodeMismatchWarning(40.1, -73.1, 40.9, -73.9, 10)).toBeNull();
+    expect(regionCodeMismatchWarning(40.1, -73.1, 40.9, -73.9, 0.1)).not.toBeNull();
   });
 });
