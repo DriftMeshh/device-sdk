@@ -13,6 +13,10 @@ export interface DeviceSdkConfig {
   regionCellSizeDegrees: number;
   epochSeconds: number;
   submitIntervalMs: number;
+  horizonUrl: string;
+  /** Unset disables the startup trustline check entirely (see client.ts's ensureTrustline). */
+  rewardAssetCode: string | undefined;
+  rewardAssetIssuer: string | undefined;
 }
 
 function required(env: NodeJS.ProcessEnv, key: string): string {
@@ -35,5 +39,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): DeviceSdkConfi
     regionCellSizeDegrees: Number(env.REGION_CELL_SIZE_DEGREES ?? 0.1),
     epochSeconds: Number(env.EPOCH_SECONDS ?? 3600),
     submitIntervalMs: Number(env.SUBMIT_INTERVAL_MS ?? 60_000),
+    horizonUrl: env.STELLAR_HORIZON_URL ?? "https://horizon-testnet.stellar.org",
+    rewardAssetCode: env.REWARD_ASSET_CODE,
+    rewardAssetIssuer: env.REWARD_ASSET_ISSUER,
   };
 }

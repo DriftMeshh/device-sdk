@@ -1,4 +1,4 @@
-import { Keypair } from "@stellar/stellar-sdk";
+import { Asset, BASE_FEE, Horizon, Keypair, TransactionBuilder, Operation } from "@stellar/stellar-sdk";
 import { basicNodeSigner } from "@stellar/stellar-sdk/contract";
 import type { AssembledTransaction, SentTransaction } from "@stellar/stellar-sdk/contract";
 import { Client as DeviceRegistryClient } from "device-registry";
@@ -172,6 +172,58 @@ export async function signAndSendWithRetry<T>(
   // Unreachable for any positive maxAttempts: the final iteration always
   // throws. Kept for exhaustiveness / the type-checker.
   throw lastError;
+}
+
+export type TrustlineResult = "already_trusted" | "established";
+
+export interface EnsureTrustlineParams {
+  deviceSecret: string;
+  networkPassphrase: string;
+  horizonUrl: string;
+  assetCode: string;
+  assetIssuer: string;
+}
+
+/**
+ * A device needs a classic-Stellar trustline to the reward asset before it
+ * can receive a payout — Soroban's token contract can't establish this on
+ * the recipient's behalf, and a missing trustline surfaces only as an
+ * opaque "trustline entry is missing for account" host error from inside
+ * `claim()`, discovered the hard way during manual testnet verification
+ * (see issue #10). This checks for it and establishes it if needed.
+ *
+ * Safe to call on every startup: a no-op once the trustline exists. Takes
+ * an injectable `horizon` client (defaulting to a real `Horizon.Server`)
+ * so this can be unit tested without a live network.
+ */
+export async function ensureTrustline(
+  params: EnsureTrustlineParams,
+  horizon: Pick<Horizon.Server, "loadAccount" | "submitTransaction"> = new Horizon.Server(
+    params.horizonUrl,
+  ),
+): Promise<TrustlineResult> {
+  const keypair = Keypair.fromSecret(params.deviceSecret);
+  const account = await horizon.loadAccount(keypair.publicKey());
+
+  const alreadyTrusts = account.balances.some(
+    (balance) =>
+      "asset_code" in balance &&
+      "asset_issuer" in balance &&
+      balance.asset_code === params.assetCode &&
+      balance.asset_issuer === params.assetIssuer,
+  );
+  if (alreadyTrusts) return "already_trusted";
+
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: params.networkPassphrase,
+  })
+    .addOperation(Operation.changeTrust({ asset: new Asset(params.assetCode, params.assetIssuer) }))
+    .setTimeout(30)
+    .build();
+  tx.sign(keypair);
+  await horizon.submitTransaction(tx);
+  return "established";
 }
 
 export class DriftMeshDevice {

@@ -1,6 +1,6 @@
 import { Keypair } from "@stellar/stellar-sdk";
 import { loadConfig } from "./config.js";
-import { DriftMeshDevice } from "./client.js";
+import { DriftMeshDevice, ensureTrustline } from "./client.js";
 import { regionCodeFromLatLon } from "./region.js";
 import { ReadingSimulator, currentEpoch } from "./simulate.js";
 import { resolveDeviceSecret } from "./identity.js";
@@ -33,6 +33,17 @@ if (cli.diagnoseEpoch) {
 
 const status = await device.ensureRegistered();
 console.log(`[device-sdk] registration: ${status}`);
+
+if (config.rewardAssetCode && config.rewardAssetIssuer) {
+  const trustlineResult = await ensureTrustline({
+    deviceSecret: config.deviceSecret,
+    networkPassphrase: config.networkPassphrase,
+    horizonUrl: config.horizonUrl,
+    assetCode: config.rewardAssetCode,
+    assetIssuer: config.rewardAssetIssuer,
+  });
+  console.log(`[device-sdk] reward asset trustline: ${trustlineResult}`);
+}
 
 const regionCode = regionCodeFromLatLon(config.lat, config.lon, config.regionCellSizeDegrees);
 const simulator = new ReadingSimulator();
