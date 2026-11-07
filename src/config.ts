@@ -1,3 +1,5 @@
+import type { LogFormat } from "./logger.js";
+
 export interface DeviceSdkConfig {
   /** Unset means index.ts auto-provisions one — see identity.ts. */
   deviceSecret: string | undefined;
@@ -17,6 +19,7 @@ export interface DeviceSdkConfig {
   /** Unset disables the startup trustline check entirely (see client.ts's ensureTrustline). */
   rewardAssetCode: string | undefined;
   rewardAssetIssuer: string | undefined;
+  logFormat: LogFormat;
 }
 
 function required(env: NodeJS.ProcessEnv, key: string): string {
@@ -42,5 +45,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): DeviceSdkConfi
     horizonUrl: env.STELLAR_HORIZON_URL ?? "https://horizon-testnet.stellar.org",
     rewardAssetCode: env.REWARD_ASSET_CODE,
     rewardAssetIssuer: env.REWARD_ASSET_ISSUER,
+    logFormat: env.LOG_FORMAT === "json" ? "json" : "text",
   };
 }
