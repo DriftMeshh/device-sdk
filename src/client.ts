@@ -142,11 +142,16 @@ function backoffDelay(attempt: number, baseDelayMs: number, maxDelayMs: number):
  * `submit_reading` / `register_device`, before `signAndSend` is called) are
  * intentionally left to the normal tick-level error handling in `index.ts`,
  * keeping the retry scoped to `signAndSend` as required.
+ *
+ * `signAndSendWithRetry` and read-only calls like `fetchEpochZero` share
+ * the same backoff loop via {@link retryWithBackoff} — only what's being
+ * retried (a write's `signAndSend()` vs. a read's RPC/simulation call)
+ * differs.
  */
-export async function signAndSendWithRetry<T>(
-  tx: AssembledTransaction<T>,
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
   options: SignAndSendRetryOptions = {},
-): Promise<SentTransaction<T>> {
+): Promise<T> {
   const maxAttempts = options.maxAttempts ?? DEFAULT_RETRY.maxAttempts;
   const baseDelayMs = options.baseDelayMs ?? DEFAULT_RETRY.baseDelayMs;
   const maxDelayMs = options.maxDelayMs ?? DEFAULT_RETRY.maxDelayMs;
@@ -154,11 +159,11 @@ export async function signAndSendWithRetry<T>(
   const sleep = options.sleep ?? defaultSleep;
 
   let lastError: unknown = new Error(
-    "signAndSend retry loop exited without making an attempt (maxAttempts <= 0)",
+    "retry loop exited without making an attempt (maxAttempts <= 0)",
   );
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await tx.signAndSend();
+      return await fn();
     } catch (err) {
       lastError = err;
       // Stop immediately on non-transient (contract/auth) errors, and on the
@@ -172,6 +177,13 @@ export async function signAndSendWithRetry<T>(
   // Unreachable for any positive maxAttempts: the final iteration always
   // throws. Kept for exhaustiveness / the type-checker.
   throw lastError;
+}
+
+export async function signAndSendWithRetry<T>(
+  tx: AssembledTransaction<T>,
+  options: SignAndSendRetryOptions = {},
+): Promise<SentTransaction<T>> {
+  return retryWithBackoff(() => tx.signAndSend(), options);
 }
 
 export type TrustlineResult = "already_trusted" | "established";
