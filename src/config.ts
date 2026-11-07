@@ -20,6 +20,7 @@ export interface DeviceSdkConfig {
   rewardAssetCode: string | undefined;
   rewardAssetIssuer: string | undefined;
   logFormat: LogFormat;
+  rejectionWarningThreshold: number;
 }
 
 function required(env: NodeJS.ProcessEnv, key: string): string {
@@ -46,5 +47,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): DeviceSdkConfi
     rewardAssetCode: env.REWARD_ASSET_CODE,
     rewardAssetIssuer: env.REWARD_ASSET_ISSUER,
     logFormat: env.LOG_FORMAT === "json" ? "json" : "text",
+    // 3 consecutive rejections is enough to rule out a single borderline
+    // reading near the tolerance boundary (which can happen to a
+    // perfectly healthy sensor) while still catching a miscalibration
+    // quickly — at the default 60s submit interval that's 3 minutes.
+    rejectionWarningThreshold: Number(env.REJECTION_WARNING_THRESHOLD ?? 3),
   };
 }

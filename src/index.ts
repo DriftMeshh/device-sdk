@@ -7,6 +7,7 @@ import { resolveDeviceSecret } from "./identity.js";
 import { parseCliArgs } from "./cli.js";
 import { getCachedEpochZero, setCachedEpochZero } from "./epochCache.js";
 import { createLogger } from "./logger.js";
+import { RejectionStreakTracker } from "./rejectionTracker.js";
 
 const cli = parseCliArgs(process.argv.slice(2));
 const loaded = loadConfig();
@@ -70,6 +71,7 @@ if (config.rewardAssetCode && config.rewardAssetIssuer) {
 
 const regionCode = regionCodeFromLatLon(config.lat, config.lon, config.regionCellSizeDegrees);
 const simulator = new ReadingSimulator();
+const rejectionTracker = new RejectionStreakTracker(config.rejectionWarningThreshold);
 log.info("startup", {
   region_code: regionCode,
   submit_interval_ms: config.submitIntervalMs,
@@ -83,6 +85,12 @@ async function tick(): Promise<void> {
   try {
     const accepted = await device.submitReading(regionCode, epoch, value);
     log.info("reading", { epoch, value, accepted });
+    if (rejectionTracker.record(accepted)) {
+      log.warn("rejection_streak", {
+        consecutive_rejections: rejectionTracker.streak,
+        detail: "readings are being rejected repeatedly — the sensor may be miscalibrated",
+      });
+    }
   } catch (err) {
     log.error("submit_failed", { error: err instanceof Error ? err.message : String(err) });
   }
