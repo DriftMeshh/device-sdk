@@ -1,0 +1,7 @@
+node_modules
+dist
+bindings/*/dist
+bindings/*/node_modules
+.env
+.git
+data

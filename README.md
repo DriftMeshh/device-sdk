@@ -52,10 +52,60 @@ submits, and sleeps rather than staying resident:
 node --env-file=.env dist/index.js --once
 ```
 
+Pass `--epoch <n>` to submit against a specific epoch number instead of
+the one computed from the current clock — useful for manually exercising
+an epoch during testing:
+
 ```bash
-npm test          # 14 tests: region bucketing + reading simulation
+node --env-file=.env dist/index.js --once --epoch 7
+```
+
+Pass `--diagnose-epoch` to print `epoch_zero`/`epoch_seconds`/the current
+computed epoch and exit immediately, without registering the device or
+submitting anything — a quick sanity check when something about epoch
+timing looks wrong:
+
+```bash
+node --env-file=.env dist/index.js --diagnose-epoch
+# [device-sdk] epoch_zero=1793976171 epoch_seconds=3600 now=1794055682 current_epoch=22
+```
+
+```bash
+npm test          # region bucketing, reading simulation, CLI parsing, trustline handling
 npm run typecheck
 ```
+
+### Running it with Docker
+
+A standalone multi-stage `Dockerfile` is included, independent of how
+`indexer`'s Bot-Hosting setup bundles device-sdk as a subdirectory:
+
+```bash
+docker build -t driftmesh-device-sdk .
+docker run --rm \
+  -e DEVICE_REGISTRY_CONTRACT_ID=<id> \
+  -e SUBMISSION_VALIDATOR_CONTRACT_ID=<id> \
+  driftmesh-device-sdk
+```
+
+All configuration is passed as environment variables at `docker run` time
+(see `.env.example` for the full list) — no `.env` file is baked into the
+image. `DEVICE_SECRET`/`OWNER_PUBLIC_KEY` left unset still auto-provisions
+a device identity as described above, but note that without a mounted
+volume for `./data`, a fresh container gets a fresh identity every run —
+mount a volume (`-v devicesdk-data:/app/data`) if you want the same
+device to persist across container restarts.
+
+### Reward asset trustline
+
+A device needs a classic-Stellar trustline to the reward asset before
+`payment-streamer.claim()` can pay it out — otherwise the claim fails
+with an opaque "trustline entry is missing for account" error from the
+token contract, not from device-sdk. Set `REWARD_ASSET_CODE` and
+`REWARD_ASSET_ISSUER` (see `.env.example`) and device-sdk checks for the
+trustline on every startup via Horizon, establishing it automatically if
+missing. Leave both unset to skip this check entirely (e.g. if claiming
+is handled by some other process that already manages trustlines).
 
 ## Verified against the live testnet deployment
 
