@@ -42,3 +42,37 @@ export function regionCodeFromLatLon(
   // correctly as the contract's u32 region_code.
   return (((latIndex & 0xffff) << 16) | (lonIndex & 0xffff)) >>> 0;
 }
+
+/**
+ * Compares the region code the configured LAT/LON would submit under
+ * against the region code the device's on-chain registered location
+ * implies. They can drift apart silently: `ensureRegistered` only
+ * registers once and skips re-registration while already active, so if
+ * LAT/LON env vars change after that first registration, readings keep
+ * submitting under a *different* region_code than the one implied by the
+ * on-chain record — with no error, since `submit_reading` doesn't
+ * validate `region_code` against the registry at all.
+ *
+ * Returns a human-readable warning message when the two disagree, or
+ * `null` when they match. Pure/deterministic so it's unit-testable
+ * without a live registry read — see `DriftMeshDevice.fetchRegisteredLocation`
+ * for where the registered lat/lon actually comes from.
+ */
+export function regionCodeMismatchWarning(
+  configuredLat: number,
+  configuredLon: number,
+  registeredLat: number,
+  registeredLon: number,
+  cellSizeDegrees: number = DEFAULT_CELL_SIZE_DEGREES,
+): string | null {
+  const configuredCode = regionCodeFromLatLon(configuredLat, configuredLon, cellSizeDegrees);
+  const registeredCode = regionCodeFromLatLon(registeredLat, registeredLon, cellSizeDegrees);
+  if (configuredCode === registeredCode) return null;
+
+  return (
+    `configured LAT/LON (region_code=${configuredCode}) doesn't match the device's ` +
+    `registered location (lat=${registeredLat}, lon=${registeredLon}, region_code=${registeredCode}). ` +
+    `Readings will keep submitting under the configured region_code, not the registered one. ` +
+    `Fix LAT/LON to match registration, or re-register the device, if this drift is unintentional.`
+  );
+}

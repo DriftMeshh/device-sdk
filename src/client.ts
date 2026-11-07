@@ -289,6 +289,17 @@ export class DriftMeshDevice {
   }
 
   /**
+   * Reads back this device's on-chain registered lat/lon. Used to detect
+   * drift between the configured LAT/LON (which readings submit under)
+   * and what was actually registered — see `regionCodeMismatchWarning`.
+   */
+  async fetchRegisteredLocation(): Promise<{ lat: number; lon: number }> {
+    const tx = await this.registry.get_device({ device: this.address });
+    const record = tx.result.unwrap();
+    return { lat: record.lat / LAT_LON_FIXED_POINT, lon: record.lon / LAT_LON_FIXED_POINT };
+  }
+
+  /**
    * Reads `submission-validator`'s own epoch-zero anchor — its deployment
    * timestamp, which is what epoch numbers are relative to (see
    * `currentEpoch` in simulate.ts). There's no direct getter for it, but

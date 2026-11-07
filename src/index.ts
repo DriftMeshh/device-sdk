@@ -1,7 +1,7 @@
 import { Keypair } from "@stellar/stellar-sdk";
 import { loadConfig } from "./config.js";
 import { DriftMeshDevice, ensureTrustline } from "./client.js";
-import { regionCodeFromLatLon } from "./region.js";
+import { regionCodeFromLatLon, regionCodeMismatchWarning } from "./region.js";
 import { ReadingSimulator, currentEpoch } from "./simulate.js";
 import { resolveDeviceSecret } from "./identity.js";
 import { parseCliArgs } from "./cli.js";
@@ -40,6 +40,18 @@ if (cli.diagnoseEpoch) {
 
 const status = await device.ensureRegistered();
 console.log(`[device-sdk] registration: ${status}`);
+
+const registeredLocation = await device.fetchRegisteredLocation();
+const regionMismatch = regionCodeMismatchWarning(
+  config.lat,
+  config.lon,
+  registeredLocation.lat,
+  registeredLocation.lon,
+  config.regionCellSizeDegrees,
+);
+if (regionMismatch) {
+  console.warn(`[device-sdk] WARNING: ${regionMismatch}`);
+}
 
 if (config.rewardAssetCode && config.rewardAssetIssuer) {
   const trustlineResult = await ensureTrustline({
