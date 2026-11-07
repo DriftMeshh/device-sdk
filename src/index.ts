@@ -5,6 +5,7 @@ import { regionCodeFromLatLon } from "./region.js";
 import { ReadingSimulator, currentEpoch } from "./simulate.js";
 import { resolveDeviceSecret } from "./identity.js";
 import { parseCliArgs } from "./cli.js";
+import { getCachedEpochZero, setCachedEpochZero } from "./epochCache.js";
 
 const cli = parseCliArgs(process.argv.slice(2));
 const loaded = loadConfig();
@@ -18,8 +19,14 @@ const device = await DriftMeshDevice.connect(config);
 console.log(`[device-sdk] device address: ${device.address}`);
 
 // Fetched before registration so --diagnose-epoch can exit without any
-// on-chain writes at all, not just without submitting a reading.
-const epochZero = await device.fetchEpochZero(config.epochSeconds);
+// on-chain writes at all, not just without submitting a reading. Cached
+// to disk since it never changes for a given deployed contract instance —
+// a frequently-restarting process shouldn't pay the RPC round-trip every time.
+const cachedEpochZero = getCachedEpochZero(config.validatorContractId);
+const epochZero = cachedEpochZero ?? (await device.fetchEpochZero(config.epochSeconds));
+if (cachedEpochZero === undefined) {
+  setCachedEpochZero(config.validatorContractId, epochZero);
+}
 
 if (cli.diagnoseEpoch) {
   const nowSeconds = Math.floor(Date.now() / 1000);
