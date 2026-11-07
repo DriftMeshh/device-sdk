@@ -17,12 +17,25 @@ const config = { ...loaded, deviceSecret, ownerPublicKey };
 const device = await DriftMeshDevice.connect(config);
 console.log(`[device-sdk] device address: ${device.address}`);
 
+// Fetched before registration so --diagnose-epoch can exit without any
+// on-chain writes at all, not just without submitting a reading.
+const epochZero = await device.fetchEpochZero(config.epochSeconds);
+
+if (cli.diagnoseEpoch) {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const epoch = currentEpoch(config.epochSeconds, epochZero);
+  console.log(
+    `[device-sdk] epoch_zero=${epochZero} epoch_seconds=${config.epochSeconds} ` +
+      `now=${nowSeconds} current_epoch=${epoch}`,
+  );
+  process.exit(0);
+}
+
 const status = await device.ensureRegistered();
 console.log(`[device-sdk] registration: ${status}`);
 
 const regionCode = regionCodeFromLatLon(config.lat, config.lon, config.regionCellSizeDegrees);
 const simulator = new ReadingSimulator();
-const epochZero = await device.fetchEpochZero(config.epochSeconds);
 console.log(
   `[device-sdk] region_code=${regionCode}, submitting every ${config.submitIntervalMs}ms ` +
     `(epoch window = ${config.epochSeconds}s, epoch_zero=${epochZero})`,
