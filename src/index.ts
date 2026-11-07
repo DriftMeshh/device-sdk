@@ -4,7 +4,9 @@ import { DriftMeshDevice } from "./client.js";
 import { regionCodeFromLatLon } from "./region.js";
 import { ReadingSimulator, currentEpoch } from "./simulate.js";
 import { resolveDeviceSecret } from "./identity.js";
+import { parseCliArgs } from "./cli.js";
 
+const cli = parseCliArgs(process.argv.slice(2));
 const loaded = loadConfig();
 const deviceSecret = await resolveDeviceSecret(loaded.deviceSecret, {
   networkPassphrase: loaded.networkPassphrase,
@@ -27,7 +29,7 @@ console.log(
 );
 
 async function tick(): Promise<void> {
-  const epoch = currentEpoch(config.epochSeconds, epochZero);
+  const epoch = cli.epochOverride ?? currentEpoch(config.epochSeconds, epochZero);
   const value = simulator.next();
   try {
     const accepted = await device.submitReading(regionCode, epoch, value);
@@ -37,9 +39,7 @@ async function tick(): Promise<void> {
   }
 }
 
-const runOnce = process.argv.includes("--once");
-
-if (runOnce) {
+if (cli.once) {
   await tick();
   process.exit(0);
 } else {
