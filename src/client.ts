@@ -3,6 +3,7 @@ import { basicNodeSigner } from "@stellar/stellar-sdk/contract";
 import type { AssembledTransaction, SentTransaction } from "@stellar/stellar-sdk/contract";
 import { Client as DeviceRegistryClient } from "device-registry";
 import { Client as SubmissionValidatorClient } from "submission-validator";
+import { Client as PaymentStreamerClient } from "payment-streamer";
 
 export interface DeviceClientConfig {
   deviceSecret: string;
@@ -14,6 +15,8 @@ export interface DeviceClientConfig {
   networkPassphrase: string;
   registryContractId: string;
   validatorContractId: string;
+  /** Unset disables claim() — see DriftMeshDevice.claim. */
+  paymentStreamerContractId?: string;
 }
 
 // Matches device-registry's documented fixed-point scale for lat/lon
@@ -246,6 +249,7 @@ export class DriftMeshDevice {
     private readonly config: DeviceClientConfig,
     private readonly registry: DeviceRegistryClient,
     private readonly validator: SubmissionValidatorClient,
+    private readonly paymentStreamer: PaymentStreamerClient | undefined,
     retryOptions: SignAndSendRetryOptions = {},
   ) {
     this.address = Keypair.fromSecret(config.deviceSecret).publicKey();
@@ -275,8 +279,11 @@ export class DriftMeshDevice {
       ...base,
       contractId: config.validatorContractId,
     });
+    const paymentStreamer = config.paymentStreamerContractId
+      ? new PaymentStreamerClient({ ...base, contractId: config.paymentStreamerContractId })
+      : undefined;
 
-    return new DriftMeshDevice(config, registry, validator, retryOptions);
+    return new DriftMeshDevice(config, registry, validator, paymentStreamer, retryOptions);
   }
 
   /**
@@ -339,6 +346,23 @@ export class DriftMeshDevice {
       epoch,
       value,
     });
+    const sent = await signAndSendWithRetry(tx, this.retryOptions);
+    return sent.result.unwrap();
+  }
+
+  /**
+   * Claims this device's proportional share of a finalized epoch's reward
+   * pool. Requires `paymentStreamerContractId` to have been set at
+   * connect() time — throws clearly instead of a confusing null-reference
+   * error if it wasn't. Returns the payout amount in stroops.
+   */
+  async claim(epoch: number): Promise<bigint> {
+    if (!this.paymentStreamer) {
+      throw new Error(
+        "Cannot claim: PAYMENT_STREAMER_CONTRACT_ID is not configured for this device.",
+      );
+    }
+    const tx = await this.paymentStreamer.claim({ device: this.address, epoch });
     const sent = await signAndSendWithRetry(tx, this.retryOptions);
     return sent.result.unwrap();
   }

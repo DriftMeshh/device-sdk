@@ -31,6 +31,17 @@ if (cachedEpochZero === undefined) {
   setCachedEpochZero(config.validatorContractId, epochZero);
 }
 
+if (cli.command === "claim") {
+  // The epoch containing "now" is by definition still open (its window
+  // hasn't closed yet), so the most recently *finalized* epoch is simply
+  // the one before it — a reasonable default without needing a separate
+  // is_epoch_final probe just to pick a starting point.
+  const epoch = cli.epoch ?? currentEpoch(config.epochSeconds, epochZero) - 1;
+  const payout = await device.claim(epoch);
+  log.info("claimed", { epoch, payout: payout.toString() });
+  process.exit(0);
+}
+
 if (cli.diagnoseEpoch) {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const epoch = currentEpoch(config.epochSeconds, epochZero);
@@ -79,8 +90,14 @@ log.info("startup", {
   epoch_zero: epochZero,
 });
 
+// Captured in a local instead of reading cli.epochOverride directly inside
+// tick() — TypeScript's narrowing of `cli` to RunArgs (from the `command
+// === "claim"` check above) doesn't carry into a separately-declared
+// function body.
+const epochOverride = cli.epochOverride;
+
 async function tick(): Promise<void> {
-  const epoch = cli.epochOverride ?? currentEpoch(config.epochSeconds, epochZero);
+  const epoch = epochOverride ?? currentEpoch(config.epochSeconds, epochZero);
   const value = simulator.next();
   try {
     const accepted = await device.submitReading(regionCode, epoch, value);
