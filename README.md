@@ -130,6 +130,20 @@ already claimed, fails with the contract's own error (`EpochNotFinal`,
 `AlreadyClaimed`, etc.) — see `contracts/payment-streamer`'s README for
 the full error list.
 
+### Deactivating a device
+
+```bash
+node --env-file=.env dist/index.js deactivate
+# [device-sdk] deactivated address=GCP747...IC7HTRT
+```
+
+`deactivate_device` on-chain accepts either the device's own key or the
+registered owner's as the caller — device-sdk only ever holds the
+device's own key, so this always self-deactivates; it can't deactivate
+some other device on an owner's behalf. Verified live against testnet: a
+freshly registered throwaway device showed `is_active: true`, then
+`false` immediately after running this command.
+
 ## Verified against the live testnet deployment
 
 Not just unit-tested — actually run against the real contracts. From
