@@ -20,6 +20,23 @@ describe("regionCodeFromLatLon", () => {
     expect(a).not.toBe(b);
   });
 
+  it("computes the documented geohash-int interleaving for a known example", () => {
+    // lat=0, lon=0, cellSizeDegrees=90: latIndex=floor(90/90)=1 (0b01),
+    // lonIndex=floor(180/90)=2 (0b10). Interleaving (lon bit, lat bit)
+    // MSB-first over 16 bits each: only lonIndex's bit 1 and latIndex's
+    // bit 0 are set, landing at result bits 2 and 0 respectively
+    // => 0b1001 = 9. Worked by hand in the PR description for #3.
+    expect(regionCodeFromLatLon(0, 0, 90)).toBe(9);
+  });
+
+  it("computes a second known interleaving example at a different cell size", () => {
+    // lat=45, lon=-90, cellSizeDegrees=45: latIndex=floor(135/45)=3
+    // (0b11), lonIndex=floor(90/45)=2 (0b10).
+    // bit1: lonBit=1, latBit=1 -> "11"; bit0: lonBit=0, latBit=1 -> "01"
+    // => 0b1101 = 13.
+    expect(regionCodeFromLatLon(45, -90, 45)).toBe(13);
+  });
+
   it("returns a non-negative u32-safe integer even near the poles/date line", () => {
     const code = regionCodeFromLatLon(89.9, 179.9, 0.1);
     expect(code).toBeGreaterThanOrEqual(0);
