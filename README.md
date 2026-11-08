@@ -107,6 +107,29 @@ trustline on every startup via Horizon, establishing it automatically if
 missing. Leave both unset to skip this check entirely (e.g. if claiming
 is handled by some other process that already manages trustlines).
 
+### Claiming a payout
+
+With `PAYMENT_STREAMER_CONTRACT_ID` set, claim this device's share of a
+finalized epoch's reward pool:
+
+```bash
+node --env-file=.env dist/index.js claim
+# [device-sdk] claimed epoch=21 payout=526315789
+```
+
+Without `--epoch`, claims the most recently finalized epoch
+(`currentEpoch() - 1` — the current epoch is by definition still open).
+Pass `--epoch <n>` to claim a specific one instead:
+
+```bash
+node --env-file=.env dist/index.js claim --epoch 7
+```
+
+Claiming an epoch that hasn't finalized yet, or that this device has
+already claimed, fails with the contract's own error (`EpochNotFinal`,
+`AlreadyClaimed`, etc.) — see `contracts/payment-streamer`'s README for
+the full error list.
+
 ## Verified against the live testnet deployment
 
 Not just unit-tested — actually run against the real contracts. From
