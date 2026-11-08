@@ -20,7 +20,8 @@
   "dependencies": {
     "@stellar/stellar-sdk": "^16.0.1",
     "device-registry": "*",
-    "submission-validator": "*"
+    "submission-validator": "*",
+    "payment-streamer": "*"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
