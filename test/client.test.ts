@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AssembledTransaction } from "@stellar/stellar-sdk/contract";
-import { isTransientError, signAndSendWithRetry } from "../src/client.js";
+import { isTransientError, retryWithBackoff, signAndSendWithRetry } from "../src/client.js";
 
 /**
  * Minimal duck-typed stand-in for an `AssembledTransaction`. The retry helper
@@ -163,5 +163,44 @@ describe("isTransientError", () => {
   it("returns false for nullish inputs", () => {
     expect(isTransientError(null)).toBe(false);
     expect(isTransientError(undefined)).toBe(false);
+  });
+});
+
+describe("retryWithBackoff", () => {
+  it("retries a plain async function on a transient failure, not just tx.signAndSend", async () => {
+    let calls = 0;
+    const fn = vi.fn(async () => {
+      calls++;
+      if (calls < 3) throw transientError();
+      return "ok";
+    });
+    const sleep = vi.fn(async () => {});
+
+    const result = await retryWithBackoff(fn, { sleep });
+
+    expect(result).toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a non-transient error from a plain function", async () => {
+    const fn = vi.fn(async () => {
+      throw namedError("SimulationFailedError", "rejected");
+    });
+    const sleep = vi.fn(async () => {});
+
+    await expect(retryWithBackoff(fn, { sleep })).rejects.toThrow("rejected");
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("is what signAndSendWithRetry delegates to — same call count for the same scripted outcomes", async () => {
+    const tx = asTx(scriptedTx([{ error: transientError() }, { value: "done" }]));
+    const sleep = vi.fn(async () => {});
+
+    const result = await retryWithBackoff(() => tx.signAndSend(), { sleep });
+
+    expect(result).toBe("done");
+    expect(tx.signAndSend).toHaveBeenCalledTimes(2);
   });
 });
