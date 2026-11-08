@@ -76,3 +76,18 @@ describe("parseCliArgs — claim command", () => {
     expect(result.command).toBe("run");
   });
 });
+
+describe("parseCliArgs — deactivate command", () => {
+  it("parses a bare deactivate command", () => {
+    expect(parseCliArgs(["deactivate"])).toEqual({ command: "deactivate" });
+  });
+
+  it("ignores trailing arguments after deactivate", () => {
+    expect(parseCliArgs(["deactivate", "--whatever"])).toEqual({ command: "deactivate" });
+  });
+
+  it("only treats a leading 'deactivate' as the command, not one appearing later", () => {
+    const result = parseCliArgs(["--once", "deactivate"]);
+    expect(result.command).toBe("run");
+  });
+});
