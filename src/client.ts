@@ -285,7 +285,10 @@ export class DriftMeshDevice {
    * reject a repeat registration.
    */
   async ensureRegistered(): Promise<RegistrationResult> {
-    const check = await this.registry.is_active({ device: this.address });
+    const check = await retryWithBackoff(
+      () => this.registry.is_active({ device: this.address }),
+      this.retryOptions,
+    );
     if (check.result) return "already_active";
 
     const tx = await this.registry.register_device({
@@ -306,7 +309,10 @@ export class DriftMeshDevice {
    * and what was actually registered — see `regionCodeMismatchWarning`.
    */
   async fetchRegisteredLocation(): Promise<{ lat: number; lon: number }> {
-    const tx = await this.registry.get_device({ device: this.address });
+    const tx = await retryWithBackoff(
+      () => this.registry.get_device({ device: this.address }),
+      this.retryOptions,
+    );
     const record = tx.result.unwrap();
     return { lat: record.lat / LAT_LON_FIXED_POINT, lon: record.lon / LAT_LON_FIXED_POINT };
   }
@@ -320,7 +326,7 @@ export class DriftMeshDevice {
    * result — it never changes for a given deployed contract.
    */
   async fetchEpochZero(epochSeconds: number): Promise<number> {
-    const tx = await this.validator.epoch_end({ epoch: 0 });
+    const tx = await retryWithBackoff(() => this.validator.epoch_end({ epoch: 0 }), this.retryOptions);
     return Number(tx.result) - epochSeconds;
   }
 
