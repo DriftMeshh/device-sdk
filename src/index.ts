@@ -21,6 +21,12 @@ const config = { ...loaded, deviceSecret, ownerPublicKey };
 const device = await DriftMeshDevice.connect(config);
 log.info("device_address", { address: device.address });
 
+if (cli.command === "deactivate") {
+  await device.deactivate();
+  log.info("deactivated", { address: device.address });
+  process.exit(0);
+}
+
 // Fetched before registration so --diagnose-epoch can exit without any
 // on-chain writes at all, not just without submitting a reading. Cached
 // to disk since it never changes for a given deployed contract instance —

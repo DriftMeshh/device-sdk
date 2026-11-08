@@ -14,7 +14,11 @@ export interface ClaimArgs {
   epoch?: number;
 }
 
-export type CliArgs = RunArgs | ClaimArgs;
+export interface DeactivateArgs {
+  command: "deactivate";
+}
+
+export type CliArgs = RunArgs | ClaimArgs | DeactivateArgs;
 
 function parseEpochFlag(argv: string[]): number | undefined {
   const epochFlagIndex = argv.indexOf("--epoch");
@@ -33,14 +37,16 @@ function parseEpochFlag(argv: string[]): number | undefined {
  * top-level script with side effects on import/execution) so this logic
  * can be unit tested in isolation.
  *
- * A leading `claim` positional argument switches to one-shot claim mode
- * (`claim [--epoch <n>]`); anything else is parsed as flags for the
- * normal continuous-submission run mode, unchanged from before `claim`
- * was added.
+ * A leading `claim` or `deactivate` positional argument switches to that
+ * one-shot command; anything else is parsed as flags for the normal
+ * continuous-submission run mode, unchanged from before either was added.
  */
 export function parseCliArgs(argv: string[]): CliArgs {
   if (argv[0] === "claim") {
     return { command: "claim", epoch: parseEpochFlag(argv.slice(1)) };
+  }
+  if (argv[0] === "deactivate") {
+    return { command: "deactivate" };
   }
 
   return {

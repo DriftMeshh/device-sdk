@@ -366,4 +366,20 @@ export class DriftMeshDevice {
     const sent = await signAndSendWithRetry(tx, this.retryOptions);
     return sent.result.unwrap();
   }
+
+  /**
+   * Deactivates this device. `deactivate_device` accepts either the
+   * device's own key or the registered owner's as `caller` — device-sdk
+   * only ever holds the device's own key, so this always calls as the
+   * device itself, not the owner (self-decommissioning a device it
+   * controls, not an owner remotely deactivating some other device).
+   */
+  async deactivate(): Promise<void> {
+    const tx = await this.registry.deactivate_device({
+      device: this.address,
+      caller: this.address,
+    });
+    const sent = await signAndSendWithRetry(tx, this.retryOptions);
+    sent.result.unwrap();
+  }
 }
