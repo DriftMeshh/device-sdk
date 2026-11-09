@@ -21,7 +21,7 @@
  * 2315) to match the `u32` scale expected by `submission-validator`.
  *
  * Requires:
- *   npm install i2c-bus@^5.2.3 bme280-sensor@^0.0.10
+ *   npm install i2c-bus@^5.2.3 bme280-sensor@^0.1.7
  */
 
 import i2c from "i2c-bus";

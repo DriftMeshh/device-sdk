@@ -19,13 +19,14 @@
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^16.0.1",
-    "bme280-sensor": "^0.0.10",
+    "bme280-sensor": "^0.1.7",
     "device-registry": "*",
     "i2c-bus": "^5.2.3",
     "payment-streamer": "*",
     "submission-validator": "*"
   },
   "devDependencies": {
+    "@types/i2c-bus": "^5.1.2",
     "@types/node": "^22.10.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
