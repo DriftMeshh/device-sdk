@@ -23,6 +23,18 @@ export interface DeviceSdkConfig {
   rewardAssetIssuer: string | undefined;
   logFormat: LogFormat;
   rejectionWarningThreshold: number;
+  /**
+   * Which sensor driver to use for readings.
+   * "simulate" (default) uses ReadingSimulator — works without hardware.
+   * "bme280" reads a real Bosch BME280 over I²C — requires the sensor to
+   * be wired and the i2c-dev kernel module to be loaded (see
+   * src/hardware/bme280.ts for full wiring / setup instructions).
+   */
+  sensorDriver: "simulate" | "bme280";
+  /** I²C bus number for the bme280 driver. Default 1. */
+  i2cBusNumber: number;
+  /** I²C address for the bme280 driver (0x76 or 0x77). Default 0x76. */
+  i2cAddress: number;
 }
 
 function required(env: NodeJS.ProcessEnv, key: string): string {
@@ -55,5 +67,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): DeviceSdkConfi
     // perfectly healthy sensor) while still catching a miscalibration
     // quickly — at the default 60s submit interval that's 3 minutes.
     rejectionWarningThreshold: Number(env.REJECTION_WARNING_THRESHOLD ?? 3),
+    sensorDriver: env.SENSOR_DRIVER === "bme280" ? "bme280" : "simulate",
+    i2cBusNumber: Number(env.I2C_BUS_NUMBER ?? 1),
+    i2cAddress: env.I2C_ADDRESS ? parseInt(env.I2C_ADDRESS, 16) : 0x76,
   };
 }

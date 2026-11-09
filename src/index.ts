@@ -3,6 +3,7 @@ import { loadConfig } from "./config.js";
 import { DriftMeshDevice, ensureTrustline } from "./client.js";
 import { regionCodeFromLatLon, regionCodeMismatchWarning } from "./region.js";
 import { ReadingSimulator, currentEpoch } from "./simulate.js";
+import { Bme280Reader } from "./hardware/bme280.js";
 import { resolveDeviceSecret } from "./identity.js";
 import { parseCliArgs } from "./cli.js";
 import { getCachedEpochZero, setCachedEpochZero } from "./epochCache.js";
@@ -87,7 +88,23 @@ if (config.rewardAssetCode && config.rewardAssetIssuer) {
 }
 
 const regionCode = regionCodeFromLatLon(config.lat, config.lon, config.regionCellSizeDegrees);
-const simulator = new ReadingSimulator();
+
+// Select the reading source: a real BME280 sensor over I²C, or the
+// simulator (default — works without any physical hardware).
+let readValue: () => Promise<number> | number;
+if (config.sensorDriver === "bme280") {
+  const bme280 = await Bme280Reader.open({
+    i2cBusNumber: config.i2cBusNumber,
+    i2cAddress: config.i2cAddress,
+  });
+  log.info("sensor_driver", { driver: "bme280", bus: config.i2cBusNumber, address: config.i2cAddress.toString(16) });
+  readValue = () => bme280.next();
+} else {
+  const simulator = new ReadingSimulator();
+  log.info("sensor_driver", { driver: "simulate" });
+  readValue = () => simulator.next();
+}
+
 const rejectionTracker = new RejectionStreakTracker(config.rejectionWarningThreshold);
 log.info("startup", {
   region_code: regionCode,
@@ -104,7 +121,7 @@ const epochOverride = cli.epochOverride;
 
 async function tick(): Promise<void> {
   const epoch = epochOverride ?? currentEpoch(config.epochSeconds, epochZero);
-  const value = simulator.next();
+  const value = await readValue();
   try {
     const accepted = await device.submitReading(regionCode, epoch, value);
     log.info("reading", { epoch, value, accepted });

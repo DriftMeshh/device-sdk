@@ -96,6 +96,54 @@ volume for `./data`, a fresh container gets a fresh identity every run —
 mount a volume (`-v devicesdk-data:/app/data`) if you want the same
 device to persist across container restarts.
 
+### Running with a real BME280 sensor
+
+Set `SENSOR_DRIVER=bme280` in your `.env` to read from a Bosch BME280
+temperature/humidity/pressure sensor over I²C instead of the simulator.
+
+**Hardware:**
+- Raspberry Pi (any model with a 40-pin GPIO header — tested on Pi 4)
+- BME280 breakout board (Adafruit #2652 or equivalent)
+
+**Wiring (Pi GPIO → BME280 breakout):**
+
+| Pi pin | Function | BME280 pin |
+|--------|----------|------------|
+| 1      | 3V3      | VIN        |
+| 3      | SDA1     | SDA        |
+| 5      | SCL1     | SCL        |
+| 9      | GND      | GND        |
+
+**Kernel module (run once, or add `i2c-dev` to `/etc/modules`):**
+
+```bash
+sudo modprobe i2c-dev
+```
+
+**Confirm the sensor is visible:**
+
+```bash
+i2cdetect -y 1   # should show 0x76 (or 0x77 if SDO is pulled high)
+```
+
+**Install dependencies** (only needed for the `bme280` driver; the
+simulator works without them):
+
+```bash
+npm install
+```
+
+**Run with real hardware:**
+
+```bash
+SENSOR_DRIVER=bme280 node --env-file=.env dist/index.js
+# [device-sdk] sensor_driver driver=bme280 bus=1 address=76
+# [device-sdk] reading epoch=42 value=2315 accepted=true
+```
+
+If your breakout pulls SDO high (address 0x77), add `I2C_ADDRESS=0x77`
+to your `.env`.
+
 ### Reward asset trustline
 
 A device needs a classic-Stellar trustline to the reward asset before
@@ -207,10 +255,10 @@ one u32) rather than a real geohash; see the Wave issues below.
 
 ## Known limitations
 
-- **No real hardware yet.** `src/simulate.ts` generates plausible values
-  via a bounded random walk, standing in for an actual sensor. Swapping
-  in real hardware means replacing `ReadingSimulator` with whatever reads
-  the physical device, not changing `client.ts` or the contract calls.
+- **Default mode is still the simulator.** `src/simulate.ts` generates plausible
+  values via a bounded random walk. Set `SENSOR_DRIVER=bme280` and wire a
+  BME280 to replace it with real readings — see `src/hardware/bme280.ts` for
+  full wiring/setup instructions.
 - **Epoch window is a convention, not enforced on-chain.** `EPOCH_SECONDS`
   just needs to match what `payment-streamer` payouts are computed
   against — nothing stops a misconfigured device from submitting into the
@@ -229,5 +277,4 @@ one u32) rather than a real geohash; see the Wave issues below.
 - Support loading `DEVICE_SECRET` from an OS keychain instead of a plaintext `.env`
 
 **High**
-- Build a real hardware integration (e.g. a Raspberry Pi + an actual temperature/air-quality sensor) replacing `ReadingSimulator`
 - Add retry/backoff for transient RPC failures during `signAndSend`, rather than only logging and waiting for the next tick
