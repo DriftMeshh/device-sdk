@@ -91,3 +91,14 @@ describe("parseCliArgs — deactivate command", () => {
     expect(result.command).toBe("run");
   });
 });
+
+describe("parseCliArgs — setup-keychain command", () => {
+  it("parses a bare setup-keychain command", () => {
+    expect(parseCliArgs(["setup-keychain"])).toEqual({ command: "setup-keychain" });
+  });
+
+  it("only treats a leading 'setup-keychain' as the command, not one appearing later", () => {
+    const result = parseCliArgs(["--once", "setup-keychain"]);
+    expect(result.command).toBe("run");
+  });
+});
