@@ -9,15 +9,35 @@ import { parseCliArgs } from "./cli.js";
 import { getCachedEpochZero, setCachedEpochZero } from "./epochCache.js";
 import { createLogger } from "./logger.js";
 import { RejectionStreakTracker } from "./rejectionTracker.js";
+import { readSecretFromKeychain, writeSecretToKeychain } from "./keychain.js";
 
 const cli = parseCliArgs(process.argv.slice(2));
 const loaded = loadConfig();
 const log = createLogger(loaded.logFormat);
-const deviceSecret = await resolveDeviceSecret(loaded.deviceSecret, {
+
+// Precedence: an explicit DEVICE_SECRET env var always wins; otherwise,
+// with USE_OS_KEYCHAIN=true, a keychain entry (if one exists yet — see
+// the setup-keychain command below) is used; otherwise the existing
+// file-persisted-or-freshly-generated chain in resolveDeviceSecret runs
+// as before.
+const keychainSecret = loaded.useOsKeychain
+  ? await readSecretFromKeychain(loaded.keychainAccount)
+  : undefined;
+const deviceSecret = await resolveDeviceSecret(loaded.deviceSecret ?? keychainSecret, {
   networkPassphrase: loaded.networkPassphrase,
 });
 const ownerPublicKey = loaded.ownerPublicKey ?? Keypair.fromSecret(deviceSecret).publicKey();
 const config = { ...loaded, deviceSecret, ownerPublicKey };
+
+if (cli.command === "setup-keychain") {
+  // Stores whatever resolveDeviceSecret just resolved above (an explicit
+  // DEVICE_SECRET, or a freshly auto-provisioned identity) — the
+  // setup-time half of the flow documented in keychain.ts. Never logs
+  // the secret itself.
+  await writeSecretToKeychain(config.keychainAccount, deviceSecret);
+  log.info("keychain_setup_complete", { account: config.keychainAccount });
+  process.exit(0);
+}
 
 const device = await DriftMeshDevice.connect(config);
 log.info("device_address", { address: device.address });

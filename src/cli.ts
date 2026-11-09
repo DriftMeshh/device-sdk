@@ -18,7 +18,11 @@ export interface DeactivateArgs {
   command: "deactivate";
 }
 
-export type CliArgs = RunArgs | ClaimArgs | DeactivateArgs;
+export interface SetupKeychainArgs {
+  command: "setup-keychain";
+}
+
+export type CliArgs = RunArgs | ClaimArgs | DeactivateArgs | SetupKeychainArgs;
 
 function parseEpochFlag(argv: string[]): number | undefined {
   const epochFlagIndex = argv.indexOf("--epoch");
@@ -37,9 +41,10 @@ function parseEpochFlag(argv: string[]): number | undefined {
  * top-level script with side effects on import/execution) so this logic
  * can be unit tested in isolation.
  *
- * A leading `claim` or `deactivate` positional argument switches to that
- * one-shot command; anything else is parsed as flags for the normal
- * continuous-submission run mode, unchanged from before either was added.
+ * A leading `claim`, `deactivate`, or `setup-keychain` positional
+ * argument switches to that one-shot command; anything else is parsed as
+ * flags for the normal continuous-submission run mode, unchanged from
+ * before any of them was added.
  */
 export function parseCliArgs(argv: string[]): CliArgs {
   if (argv[0] === "claim") {
@@ -47,6 +52,9 @@ export function parseCliArgs(argv: string[]): CliArgs {
   }
   if (argv[0] === "deactivate") {
     return { command: "deactivate" };
+  }
+  if (argv[0] === "setup-keychain") {
+    return { command: "setup-keychain" };
   }
 
   return {
