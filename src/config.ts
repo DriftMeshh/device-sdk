@@ -35,6 +35,9 @@ export interface DeviceSdkConfig {
   i2cBusNumber: number;
   /** I²C address for the bme280 driver (0x76 or 0x77). Default 0x76. */
   i2cAddress: number;
+  /** See keychain.ts and the `setup-keychain` CLI command. */
+  useOsKeychain: boolean;
+  keychainAccount: string;
 }
 
 function required(env: NodeJS.ProcessEnv, key: string): string {
@@ -70,5 +73,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): DeviceSdkConfi
     sensorDriver: env.SENSOR_DRIVER === "bme280" ? "bme280" : "simulate",
     i2cBusNumber: Number(env.I2C_BUS_NUMBER ?? 1),
     i2cAddress: env.I2C_ADDRESS ? parseInt(env.I2C_ADDRESS, 16) : 0x76,
+    useOsKeychain: env.USE_OS_KEYCHAIN === "true",
+    keychainAccount: env.KEYCHAIN_ACCOUNT ?? "default",
   };
 }
