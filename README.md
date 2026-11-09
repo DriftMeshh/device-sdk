@@ -192,6 +192,36 @@ some other device on an owner's behalf. Verified live against testnet: a
 freshly registered throwaway device showed `is_active: true`, then
 `false` immediately after running this command.
 
+### Storing the device's secret in an OS keychain
+
+By default `DEVICE_SECRET` sits as plaintext in `.env` — fine for local
+testing, a real security gap for anything else. Set
+`USE_OS_KEYCHAIN=true` to read it from the OS keychain instead:
+
+```bash
+node --env-file=.env dist/index.js setup-keychain   # one-time: stores it
+# [device-sdk] keychain_setup_complete account=default
+
+node --env-file=.env dist/index.js                  # reads it back from here on
+```
+
+`setup-keychain` stores whatever `DEVICE_SECRET` is already set to, or a
+freshly auto-provisioned identity if it's unset — never prints the
+secret itself. Supported platforms: macOS (via the bundled `security`
+command) and Linux (via `secret-tool`, part of `libsecret-tools` —
+requires a running Secret Service provider like GNOME Keyring; headless
+servers typically don't have one). **Not supported on Windows** —
+`cmdkey` can store a credential but can't read the secret back out, by
+Windows' own design, so there's no clean round-trip to implement without
+a native dependency this project deliberately avoids (see the design
+discussion on issue #5). No native npm dependency either way: both
+platforms are driven by shelling out to their own bundled/standard CLI
+tool. Neither tool is installed in this project's own sandboxed dev
+environment, so the actual OS calls are covered by unit tests against an
+injected fake process (`test/keychain.test.ts`) plus this documentation,
+not a live run here — verify on a real macOS/Linux-desktop machine
+before relying on it.
+
 ## Verified against the live testnet deployment
 
 Not just unit-tested — actually run against the real contracts. From
